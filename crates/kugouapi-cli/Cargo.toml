@@ -1,0 +1,24 @@
+[package]
+name = "kugouapi-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Command-line client for the kugouapi crate."
+
+[[bin]]
+name = "kugou"
+path = "src/main.rs"
+
+[dependencies]
+kugouapi = { path = "../kugouapi" }
+tokio = { workspace = true }
+serde_json = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }
+dirs = { workspace = true }
+futures = { workspace = true }
+
+[lints]
+workspace = true
