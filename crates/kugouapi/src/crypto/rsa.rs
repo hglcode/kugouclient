@@ -4,7 +4,7 @@
 use rsa::pkcs1::DecodeRsaPublicKey;
 use rsa::pkcs8::DecodePublicKey;
 use rsa::traits::PublicKeyParts;
-use rsa::{BigUint, Pkcs1v15Encrypt, RsaPublicKey};
+use rsa::{BoxedUint, Pkcs1v15Encrypt, PublicKey};
 
 use super::CipherInput;
 use crate::config::Platform;
@@ -60,10 +60,10 @@ pub fn rsa_encrypt_hex(data: &CipherInput, platform: Platform) -> String {
 }
 
 /// PKCS#1 v1.5 encrypt to lowercase hex with an explicit key.
-pub fn pkcs1v15_hex(key: &RsaPublicKey, plaintext: &[u8]) -> Result<String> {
+pub fn pkcs1v15_hex(key: &PublicKey, plaintext: &[u8]) -> Result<String> {
     // rsa 0.9 bounds its RNG on rand_core 0.6 traits, which rand 0.10's
     // ThreadRng cannot satisfy; rsa's re-exported OsRng bridges the gap.
-    let mut rng = rsa::rand_core::OsRng;
+    let mut rng = rand::rng();
     let ciphertext = key
         .encrypt(&mut rng, Pkcs1v15Encrypt, plaintext)
         .map_err(|e| Error::Crypto(format!("rsaEncrypt2: {e}")))?;
@@ -92,52 +92,52 @@ pub fn rsa_encrypt_raw(
 
 /// Raw no-padding RSA over a pre-padded buffer, returning the raw ciphertext
 /// bytes (used by the `login.device.kick` flow).
-pub fn raw_modpow_public(key: &RsaPublicKey, padded: &[u8]) -> Result<Vec<u8>> {
-    let modulus_len = key.n().bits().div_ceil(8);
+pub fn raw_modpow_public(key: &PublicKey, padded: &[u8]) -> Result<Vec<u8>> {
+    let modulus_len = key.size();
     if padded.len() != modulus_len {
         return Err(Error::Crypto(format!(
-            "raw RSA input must equal the modulus length ({modulus_len})"
+            "raw RSA input length {} does not match modulus length {}",
+            padded.len(),
+            modulus_len
         )));
     }
-    let m = BigUint::from_bytes_be(padded);
-    let c = m.modpow(key.e(), key.n());
-    let bytes = c.to_bytes_be();
-    let mut out = vec![0u8; modulus_len.saturating_sub(bytes.len())];
-    out.extend_from_slice(&bytes);
-    Ok(out)
+
+    let m = BoxedUint::from_be_slice(padded, (modulus_len * 8) as u32)
+        .map_err(|e| Error::Crypto(format!("raw RSA input: {e}")))?;
+    let c = rsa::hazmat::rsa_encrypt(key, &m)
+        .map_err(|e| Error::Crypto(format!("raw RSA encrypt: {e}")))?;
+
+    let bytes = c.to_be_bytes(); // 固定长度，通常正好是 modulus_len
+    Ok(bytes.to_vec())
 }
 
 /// Raw no-padding RSA: zero-pad plaintext to modulus length, modPow, hex output
 /// left-padded to the modulus length (matching Node's `RSA_NO_PADDING`
 /// fixed-length output).
-pub fn raw_modpow_hex(key: &RsaPublicKey, plaintext: &[u8]) -> Result<String> {
-    let modulus_len = key.n().bits().div_ceil(8);
+pub fn raw_modpow_hex(key: &PublicKey, plaintext: &[u8]) -> Result<String> {
+    let modulus_len = key.size();
     if plaintext.len() > modulus_len {
-        return Err(Error::Crypto(
-            "RSA plaintext length exceeds key length".to_owned(),
-        ));
+        return Err(Error::Crypto(format!(
+            "raw RSA plaintext length {} exceeds modulus length {}",
+            plaintext.len(),
+            modulus_len
+        )));
     }
     let mut padded = vec![0u8; modulus_len];
-    padded[..plaintext.len()].copy_from_slice(plaintext);
+    padded[modulus_len - plaintext.len()..].copy_from_slice(plaintext);
 
-    let m = BigUint::from_bytes_be(&padded);
-    let c = m.modpow(key.e(), key.n());
-    let mut bytes = c.to_bytes_be();
-    // Left-pad the output to the modulus length so the hex length matches the
-    // reference implementation (Node always emits modulus-length output).
-    let mut out = vec![0u8; modulus_len.saturating_sub(bytes.len())];
-    out.append(&mut bytes);
-    Ok(hex::encode(out))
+    let bytes = raw_modpow_public(key, &padded)?;
+    Ok(hex::encode(bytes).to_uppercase())
 }
 
 /// Load an RSA public key from PEM (SPKI or PKCS#1) or DER base64 (SPKI, then
 /// PKCS#1).
-pub fn load_public_key(key: &str) -> Result<RsaPublicKey> {
+pub fn load_public_key(key: &str) -> Result<PublicKey> {
     if key.contains("-----") {
-        if let Ok(parsed) = RsaPublicKey::from_public_key_pem(key) {
+        if let Ok(parsed) = PublicKey::from_public_key_pem(key) {
             return Ok(parsed);
         }
-        if let Ok(parsed) = RsaPublicKey::from_pkcs1_pem(key) {
+        if let Ok(parsed) = PublicKey::from_pkcs1_pem(key) {
             return Ok(parsed);
         }
         return Err(Error::Crypto(
@@ -147,10 +147,10 @@ pub fn load_public_key(key: &str) -> Result<RsaPublicKey> {
 
     let der = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, key.trim())
         .map_err(|e| Error::Crypto(format!("invalid RSA public key (DER base64): {e}")))?;
-    if let Ok(parsed) = RsaPublicKey::from_public_key_der(&der) {
+    if let Ok(parsed) = PublicKey::from_public_key_der(&der) {
         return Ok(parsed);
     }
-    if let Ok(parsed) = RsaPublicKey::from_pkcs1_der(&der) {
+    if let Ok(parsed) = PublicKey::from_pkcs1_der(&der) {
         return Ok(parsed);
     }
     Err(Error::Crypto(

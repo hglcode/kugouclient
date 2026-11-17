@@ -7,37 +7,46 @@ version = "0.1.0"
 edition = "2024"
 # MSRV floor raised by the 2025 crypto stack: aes 0.9 requires 1.89,
 # sha2 0.11 requires 1.88.
-rust-version = "1.89"
+rust-version = "1.100"
 license = "MIT"
-repository = "https://github.com/hglcode/kugouapi-rs"
+repository = "https://github.com/hglcode/kugouclient"
 keywords = ["kugou", "music", "api-client", "async"]
 categories = ["api-bindings", "multimedia::audio"]
 
 [workspace.dependencies]
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.154", features = ["preserve_order"] }
-tokio = { version = "1.54.1", features = ["macros", "rt-multi-thread", "time", "sync"] }
+tokio = { version = "1.54.1", features = [
+    "macros",
+    "rt-multi-thread",
+    "time",
+    "sync",
+] }
 # reqwest 0.13 reorganized features: `rustls-tls` -> `rustls`, and
 # `RequestBuilder::query()` is now gated behind the `query` feature.
-reqwest = { version = "0.13.5", default-features = false, features = ["rustls", "gzip", "query"] }
+reqwest = { version = "0.13.5", default-features = false, features = [
+    "rustls",
+    "gzip",
+    "query",
+] }
 thiserror = "2.0.21"
 md-5 = "0.11.0"
 sha2 = "0.11.1"
 sha1 = "0.11.0"
-aes = "0.9.3"
+aes = "0.9.4"
 cbc = { version = "0.2.1", features = ["alloc", "block-padding"] }
 # `getrandom` enables `rsa::rand_core::OsRng`: rsa 0.9 bounds its RNG
 # parameters on rand_core 0.6 traits while this crate uses rand 0.10
 # (rand_core 0.10), so RSA calls take rsa's own re-exported OS RNG.
-rsa = { version = "0.9.10", features = ["sha2", "getrandom"] }
+rsa = { version = "0.10.0", features = ["getrandom", "pkcs1v15", "hazmat"] }
 base64 = "0.23.1"
 hex = "0.4.3"
-flate2 = "1.1.10"
-rand = "0.10.3"
-uuid = { version = "1.29.0", features = ["v4"] }
+flate2 = "1.1.11"
+rand = "0.10.4"
+uuid = { version = "1.29.3", features = ["v4"] }
 tracing = "0.1.44"
 futures = "0.3.34"
-clap = { version = "4.6.7", features = ["derive"] }
+clap = { version = "4.6.8", features = ["derive"] }
 anyhow = "1.0.104"
 dirs = "7.0.0"
 httpdate = "1.0.3"

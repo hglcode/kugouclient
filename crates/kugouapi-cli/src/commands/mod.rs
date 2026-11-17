@@ -194,20 +194,16 @@ pub fn endpoints(filter: Option<&str>, markdown: bool) {
         {
             continue;
         }
-        let extra = endpoint(id)
-            .map(|entry| {
-                let spec = entry.spec;
-                format!(
-                    "{} {}{}{}",
-                    spec.method.as_str(),
-                    spec.path,
-                    spec.origin.map(|o| format!(" @{o}")).unwrap_or_default(),
-                    spec.router
-                        .map(|r| format!(" router:{r}"))
-                        .unwrap_or_default(),
-                )
-            })
-            .unwrap_or_default();
+        let extra = endpoint(id).map_or_default(|entry| {
+            let spec = entry.spec;
+            format!(
+                "{} {}{}{}",
+                spec.method.as_str(),
+                spec.path,
+                spec.origin.map_or_default(|o| format!(" @{o}")),
+                spec.router.map_or_default(|r| format!(" router:{r}")),
+            )
+        });
         println!("{id:<44} {extra}");
     }
 }

@@ -830,7 +830,7 @@ pub fn endpoints() -> Vec<RegisteredEndpoint> {
             query.set("roomid", room_id(p));
             let body = json!({
                 "act_type": js::or_flex(&p.act_type, 1),
-                "list_version": p.list_version.clone().map(|v| v.or("")).unwrap_or_default(),
+                "list_version": p.list_version.clone().map_or_default(|v| v.or("")),
                 "is_auto": if js::or_flex(&p.is_auto, 0) != 0 { "1" } else { "0" },
                 "audio": {
                     "hash": p.hash.clone().unwrap_or_default(),
@@ -956,7 +956,7 @@ pub fn endpoints() -> Vec<RegisteredEndpoint> {
             body.insert("action".to_owned(), json!(js::or_flex(&p.action, 4)));
             body.insert(
                 "list_version".to_owned(),
-                json!(p.list_version.clone().map(|v| v.or("")).unwrap_or_default()),
+                json!(p.list_version.clone().map_or_default(|v| v.or(""))),
             );
             body.insert(
                 "sendall".to_owned(),

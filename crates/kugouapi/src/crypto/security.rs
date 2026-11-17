@@ -199,15 +199,15 @@ pub fn generate_simulate(input: SimulateInput) -> Result<SimulateResult> {
         .expect("security key/iv are fixed 16 bytes");
     let edt = BASE64.encode(cipher.encrypt_padded_vec::<Pkcs7>(sid_plaintext.as_bytes()));
 
-    let public_key = rsa::RsaPublicKey::from_public_key_pem(SECURITY_PUBLIC_KEY)
+    let public_key = rsa::PublicKey::from_public_key_pem(SECURITY_PUBLIC_KEY)
         .map_err(|e| Error::Crypto(format!("security public key: {e}")))?;
     // rsa 0.9 bounds its RNG on rand_core 0.6 traits; rand 0.10's ThreadRng
     // cannot satisfy them, so the OAEP seed comes from rsa's re-exported OsRng
     // (the trajectory above keeps using rand 0.10).
-    let mut os_rng = rsa::rand_core::OsRng;
+    let mut rng = rand::rng();
     let sid = BASE64.encode(
         public_key
-            .encrypt(&mut os_rng, Oaep::new::<Sha256>(), key.as_bytes())
+            .encrypt(&mut rng, Oaep::<Sha256>::new(), key.as_bytes())
             .map_err(|e| Error::Crypto(format!("security sid: {e}")))?,
     );
 
@@ -218,8 +218,7 @@ pub fn generate_simulate(input: SimulateInput) -> Result<SimulateResult> {
 pub(crate) fn now_ms() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or_default()
+        .map_or_default(|d| d.as_millis() as u64)
 }
 
 #[cfg(test)]

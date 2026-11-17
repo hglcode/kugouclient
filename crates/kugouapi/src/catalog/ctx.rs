@@ -270,8 +270,7 @@ pub(crate) fn now_secs() -> u64 {
 pub fn now_secs_public() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or_default()
+        .map_or_default(|d| d.as_secs())
 }
 
 /// Build a context from a client.

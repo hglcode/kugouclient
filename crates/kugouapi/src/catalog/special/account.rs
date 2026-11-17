@@ -1013,7 +1013,7 @@ fn login_device_kick_handler<'a>(
         // Original reference semantics: raw no-padding RSA with the lite key.
         let encrypted = {
             use rsa::pkcs8::DecodePublicKey;
-            let key = rsa::RsaPublicKey::from_public_key_pem(crate::crypto::LITE_RSA_PUBLIC_KEY)
+            let key = rsa::PublicKey::from_public_key_pem(crate::crypto::LITE_RSA_PUBLIC_KEY)
                 .map_err(|e| Error::Crypto(e.to_string()))?;
             hex::encode(crate::crypto::raw_modpow_public(&key, &padded)?).to_uppercase()
         };
@@ -1343,14 +1343,11 @@ fn login_qr_authorize_handler<'a>(
             )
             .await?;
 
-        let scan_userid = scan_data
-            .get("userid")
-            .map(|v| match v {
-                Value::Number(n) => n.to_string(),
-                Value::String(s) => s.clone(),
-                other => other.to_string(),
-            })
-            .unwrap_or_default();
+        let scan_userid = scan_data.get("userid").map_or_default(|v| match v {
+            Value::Number(n) => n.to_string(),
+            Value::String(s) => s.clone(),
+            other => other.to_string(),
+        });
         if scan_userid != ctx.userid.to_string() {
             let mut out = scan_data;
             out["qrcode"] = json!(qrcode);
@@ -1371,14 +1368,11 @@ fn login_qr_authorize_handler<'a>(
                 },
             )
             .await?;
-        let authorize_userid = authorize_data
-            .get("userid")
-            .map(|v| match v {
-                Value::Number(n) => n.to_string(),
-                Value::String(s) => s.clone(),
-                other => other.to_string(),
-            })
-            .unwrap_or_default();
+        let authorize_userid = authorize_data.get("userid").map_or_default(|v| match v {
+            Value::Number(n) => n.to_string(),
+            Value::String(s) => s.clone(),
+            other => other.to_string(),
+        });
         let mut out = authorize_data;
         out["qrcode"] = json!(qrcode);
         out["appid"] = json!(request_appid);
@@ -1488,8 +1482,7 @@ fn login_qq_qr_create_handler<'a>(
         let pt_login_sig = cookie_jar
             .iter()
             .find(|(k, _)| k == "pt_login_sig")
-            .map(|(_, v)| v.clone())
-            .unwrap_or_default();
+            .map_or_default(|(_, v)| v.clone());
 
         let qr_url = format!(
             "https://xui.ptlogin2.qq.com/ssl/ptqrshow?s=8&e=0&appid=716027609&type=0&t={}&daid=381&pt_3rd_aid={client_id}",

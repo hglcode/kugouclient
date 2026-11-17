@@ -561,7 +561,7 @@ fn parse_ids(value: Option<&Value>) -> Vec<i64> {
                 .filter_map(|s| s.trim().parse().ok())
                 .collect()
         }
-        Some(other) => id_from_value(other).map(|id| vec![id]).unwrap_or_default(),
+        Some(other) => id_from_value(other).map_or_default(|id| vec![id]),
         None => Vec::new(),
     }
 }

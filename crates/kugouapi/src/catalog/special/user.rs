@@ -639,20 +639,19 @@ async fn cscc_handshake(
         hex::encode(bytes)
     };
     use rsa::pkcs8::DecodePublicKey;
-    let public_key = rsa::RsaPublicKey::from_public_key_pem(crate::crypto::LITE_RSA_PUBLIC_KEY)
+    let public_key = rsa::PublicKey::from_public_key_pem(crate::crypto::LITE_RSA_PUBLIC_KEY)
         .map_err(|e| Error::Crypto(e.to_string()))?;
     use rsa::Pkcs1v15Encrypt;
-    // rsa 0.9 wants a rand_core 0.6 RNG; rsa's re-exported OsRng provides one.
-    let mut os_rng = rsa::rand_core::OsRng;
-    let s = BASE64.encode(
+    let s = BASE64.encode({
+        let mut rng = rand::rng();
         public_key
             .encrypt(
-                &mut os_rng,
+                &mut rng,
                 Pkcs1v15Encrypt,
                 format!("{uuid}\t{field2}\t{}\t{deviceid}", crate::crypto::now_ms()).as_bytes(),
             )
-            .map_err(|e| Error::Crypto(e.to_string()))?,
-    );
+            .map_err(|e| Error::Crypto(e.to_string()))?
+    });
 
     t = crate::catalog::ctx::now_secs_public().to_string();
     let mut query = QueryRecord::new();
@@ -691,14 +690,11 @@ async fn cscc_handshake(
         .and_then(Value::as_str)
         .unwrap_or("")
         .to_owned();
-    let clienttime = session
-        .get("clienttime")
-        .map(|v| match v {
-            Value::Number(n) => n.to_string(),
-            Value::String(s) => s.clone(),
-            _ => String::new(),
-        })
-        .unwrap_or_default();
+    let clienttime = session.get("clienttime").map_or_default(|v| match v {
+        Value::Number(n) => n.to_string(),
+        Value::String(s) => s.clone(),
+        _ => String::new(),
+    });
     let serverstr = session
         .get("serverstr")
         .and_then(Value::as_str)
@@ -760,8 +756,7 @@ fn user_listen_report_handler<'a>(
             .mixsongid
             .as_ref()
             .and_then(FlexI64::value)
-            .map(|v| v.to_string())
-            .unwrap_or_default();
+            .map_or_default(|v| v.to_string());
         let event = p.event.clone().unwrap_or_default();
         let state = p
             .state
@@ -1666,7 +1661,7 @@ fn user_visitors_handler<'a>(
         }
         padded[..plain_bytes.len()].copy_from_slice(plain_bytes);
         use rsa::pkcs8::DecodePublicKey;
-        let public_key = rsa::RsaPublicKey::from_public_key_pem(crate::crypto::LITE_RSA_PUBLIC_KEY)
+        let public_key = rsa::PublicKey::from_public_key_pem(crate::crypto::LITE_RSA_PUBLIC_KEY)
             .map_err(|e| Error::Crypto(e.to_string()))?;
         let p_param =
             hex::encode(crate::crypto::raw_modpow_public(&public_key, &padded)?).to_uppercase();
@@ -1781,7 +1776,7 @@ fn blacklist_handler<'a>(
                         "k": p.hash.clone().unwrap_or_default().to_lowercase(),
                         "v": serde_json::to_string(&json!({
                             "n": p.name.clone().unwrap_or_default(),
-                            "m": p.mixsongid.as_ref().and_then(FlexI64::value).map(|v| v.to_string()).unwrap_or_default(),
+                            "m": p.mixsongid.as_ref().and_then(FlexI64::value).map_or_default(|v| v.to_string()),
                             "t": timestamp,
                         }))?,
                     })]

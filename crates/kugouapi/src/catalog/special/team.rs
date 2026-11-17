@@ -52,7 +52,7 @@ fn h5_token(_ctx: &CallCtx<'_>, raw_token: &str) -> Result<String> {
     }
     padded[..input.len()].copy_from_slice(&input);
     use rsa::pkcs8::DecodePublicKey;
-    let key = rsa::RsaPublicKey::from_public_key_pem(crate::crypto::LITE_RSA_PUBLIC_KEY)
+    let key = rsa::PublicKey::from_public_key_pem(crate::crypto::LITE_RSA_PUBLIC_KEY)
         .map_err(|e| Error::Crypto(e.to_string()))?;
     Ok(format!(
         "h5{}",

@@ -475,8 +475,7 @@ fn playlist_share_official_handler<'a>(
     Box::pin(async move {
         let id =
             p.id.value()
-                .map(std::string::ToString::to_string)
-                .unwrap_or_default();
+                .map_or_default(std::string::ToString::to_string);
         if id.is_empty() {
             return Err(Error::Api {
                 code: 0,
